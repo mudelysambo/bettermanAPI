@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import { createChaptersSchema } from "@/validators/course";
 import { ZodError } from "zod";
 import { strict_output } from "@/lib/gpt";
-//import { getUnsplashImage } from "@/lib/unsplash";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: Request, res: Response) {
