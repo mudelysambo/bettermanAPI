@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createChaptersSchema } from "@/validators/course";
 import { ZodError } from "zod";
 import { strict_output } from "@/lib/gpt";
+import { getUnsplashImage } from "@/lib/unsplash";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: Request, res: Response) {
@@ -30,29 +31,40 @@ export async function POST(req: Request, res: Response) {
             }
         );
 
+        const imageSearchTerm = await strict_output(
+          "you are an AI capable of finding the most relevant image for a course",
+          `Please provide a good image search term for the title of a course about ${title}. This search term will be fed into the unsplash API, so make sure it is a good search term that will return good results`,
+          {
+            image_search_term: "a good search term for the title of the course",
+          }
+        );
+    
+        const course_image = await getUnsplashImage(
+          imageSearchTerm.image_search_term
+        );
         const course = await prisma.course.create({
+          data: {
+            name: title,
+          },
+        });
+    
+        for (const unit of output_units) {
+          const title = unit.title;
+          const prismaUnit = await prisma.unit.create({
             data: {
               name: title,
+              courseId: course.id,
             },
           });
-
-        for (const unit of output_units) {
-            const title = unit.title;
-            const prismaUnit = await prisma.unit.create({
-              data: {
-                name: title,
-                courseId: course.id,
-              },
-            });
-            await prisma.chapter.createMany({
-                data: unit.chapters.map((chapter) => {
-                    return {
-                        name: chapter.chapter_title,
-                        youtubeSearchQuery: chapter.youtube_search_query,
-                        unitId: prismaUnit.id,
-                    };
-                }),
-            });
+          await prisma.chapter.createMany({
+            data: unit.chapters.map((chapter) => {
+              return {
+                name: chapter.chapter_title,
+                youtubeSearchQuery: chapter.youtube_search_query,
+                unitId: prismaUnit.id,
+              };
+            }),
+          });
         }
 
         return NextResponse.json({course_id: course.id});
